@@ -1,0 +1,73 @@
+@startuml
+
+!function $trimming_whitespaces($string)
+  !$mutable_string = $string
+  !$dirty = %false()
+  !$first_index = 0
+  !$len = %strlen($mutable_string)
+  !if $len == 0
+    !return ""
+  !endif
+  !$pos = %strpos($mutable_string, " ")
+  !$last_index = $len - 1
+  !if $pos == 0
+    !$first_index = 1
+    !$dirty = %true()
+  !endif
+  !if %substr($mutable_string, $last_index, 1) == " "
+    !$last_index = $last_index - 1
+    !$dirty = %true()
+  !endif
+  !if $dirty
+    !$mutable_string = %substr($mutable_string, $first_index, $last_index - $first_index + 1)
+    !$mutable_string = $trimming_whitespaces($mutable_string)
+  !endif
+  !return $mutable_string
+!endfunction
+
+!function $camel_cased($message, $upper = %true())
+  !$mutable_string = $trimming_whitespaces($message)
+  !$pos = %strpos($mutable_string, " ")
+  !$len = %strlen($mutable_string)
+  !if $len == 0
+    !return ""
+  !endif
+  !$first = $mutable_string
+  !$reminder = ""
+  !if $pos > 0
+    !$first = %substr($mutable_string, 0, $pos)
+    !$reminder = %substr($mutable_string, $pos, $len - $pos)
+  !endif
+  !$first_len = %strlen($first)
+  !$first_letter = %substr($mutable_string, 0, 1)
+  !$first_reminder = %substr($first, 1, $first_len - 1)
+  !if $upper
+    !$first_letter = %upper($first_letter)
+  !else
+    !$first_letter = %lower($first_letter)
+  !endif
+  !$first = $first_letter + $first_reminder
+  !return $first + $camel_cased($reminder)
+!endfunction
+
+!function $replacing($string, $sub, $replacement)
+  !$mutable_string = $string
+  !$pos = %strpos($mutable_string, $sub)
+  !if $pos >= 0
+    !$sub_len = %strlen($sub)
+    !$prefix = %substr($mutable_string, 0, $pos)
+    !$suffix = %substr($mutable_string, $pos + $sub_len)
+    !$mutable_string = $prefix + $replacement + $suffix
+    !$mutable_string = $replacing($mutable_string, $sub, $replacement)
+  !endif
+  !return $mutable_string
+!endfunction
+
+!function $dropping($message, $drop)
+  !$mutable_string = $message
+  !$pos = %strpos($mutable_string, $drop) + %strlen($drop)
+  !$mutable_string = %substr($mutable_string, $pos, %strlen($mutable_string) - $pos)
+  !return $trimming_whitespaces($mutable_string)
+!endfunction
+
+@enduml

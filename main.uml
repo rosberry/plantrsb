@@ -1,0 +1,183 @@
+@startuml
+
+!include_once strings.uml
+!include_once map_arguments.uml
+!include_once colors.uml
+
+!$CONFIG = {
+  "app": {
+    "color": "#LightBlue"
+  },
+  "screen": {
+    "color": "#LightYellow"
+  },
+  "screens": []
+}
+
+!procedure $configure_platform_participants()
+!endprocedure
+
+!procedure $configure_participants()
+  actor User
+  participant App $CONFIG.app.color
+
+  !foreach $screen in $CONFIG.screens
+    !$color = $screen.color
+    !if %not($color)
+      !$color = $CONFIG.screen.color
+    !endif
+    !if $screen.order
+      participant $screen.name $color order $screen.order
+    !else
+      participant $screen.name $color
+    !endif
+  !endfor
+!endprocedure
+
+!unquoted function $function_name($string, $prefix = "")
+  !$mutable_string = $replacing($string, " ", "_")
+  !$mutable_string = $replacing($mutable_string, ":", "")
+  !$mutable_string = %lower($mutable_string)
+  !return "$" + $prefix + $mutable_string
+!endfunction
+
+!unquoted procedure $override($string, $replacement)
+  !$name = $function_name($string)
+  !$proc_name = $function_name($string, "proc_")
+  %set_variable_value($name, $replacement)
+  %set_variable_value($proc_name, "NULL")
+!endprocedure
+
+!unquoted procedure $override_procedure($string, $replacement)
+  !$name = $function_name($string)
+  !$proc_name = $function_name($string, "proc_")
+  %set_variable_value($name, "NULL")
+  %set_variable_value($proc_name, $replacement)
+!endprocedure
+
+!function $subpart($instance, $message)
+  !$instance = $trimming_whitespaces($instance)
+  !$message = $trimming_whitespaces($message)
+  !$string = $instance + ": " + $message
+  !$name = $function_name($string)
+  !$proc_name = $function_name($string, "proc_")
+
+  !$arguments_map = $map_arguments($message)
+  !if $mapped_value($arguments_map, "success") == "1"
+    !$function_name = $mapped_value($arguments_map, "func")
+    %invoke_procedure($function_name, $instance, $arguments_map)
+    !return ""
+  !elseif (%variable_exists($name)) && (%not(%get_variable_value($name) == "NULL"))
+    !$value = %get_variable_value($name)
+    !if %function_exists($value)
+      !return %call_user_func($value)
+    !else
+      !return $value
+    !endif
+  !elseif (%variable_exists($proc_name)) && (%not(%get_variable_value($proc_name) == "NULL"))
+    !$value = %get_variable_value($proc_name)
+    %invoke_procedure($value)
+    !return ""
+  !else
+    !$name = $function_name($instance)
+    !$value = ""
+    !if %variable_exists($name)
+      !$value = %get_variable_value($name)
+    !elseif %function_exists($value)
+      !$value = %call_user_func($value)
+    !else
+      !$value = $instance
+    !endif
+    !if %strlen($message) > 0
+      !$value = $value + ": " + $message
+    !endif
+    !return $value
+  !endif
+!endfunction
+
+!procedure $show($instance, $arguments_map)
+  !$screen = $mapped_value($arguments_map, "screen")
+  $instance -> $screen ++: show
+!endprocedure
+
+!procedure $finish($instance, $arguments_map)
+  !$screen = $mapped_value($arguments_map, "screen")
+  $instance <-- $screen --: finish
+!endprocedure
+
+!procedure $tap($screen, $arguments_map)
+  !$element = $mapped_value($arguments_map, "element")
+  !$type = $mapped_value($arguments_map, "type")
+  User -> $screen ++: tap on $element $type
+!endprocedure
+
+!procedure $end_tap($screen, $arguments_map)
+  deactivate $screen
+!endprocedure
+
+!procedure $end_screen($screen, $arguments_map)
+  deactivate $screen
+!endprocedure
+
+$override(App: launch, User -> App ++: launch)
+
+!unquoted function $App($message = "") !return $subpart("App", $message)
+!unquoted function $User($message = "") !return $subpart("User", $message)
+!unquoted function $Screen($screen, $message = "") !return $subpart($screen, $message)
+
+!procedure $call_logic($screen, $message)
+  $screen -> BusinessLogic ++: $message
+!endprocedure
+
+!procedure $success_logic($screen, $message)
+  $screen <-- BusinessLogic: success $message
+  activate BusinessLogic
+  deactivate BusinessLogic
+  activate $screen
+  deactivate $screen
+!endprocedure
+
+!procedure $fail_logic($screen, $message)
+  $screen <-- BusinessLogic: fail $message
+  activate BusinessLogic
+  deactivate BusinessLogic
+  activate $screen
+  deactivate $screen
+!endprocedure
+
+!procedure $end_logic($screen, $message)
+  deactivate BusinessLogic
+!endprocedure
+
+!function $call_logic_if_token($token, $func, $screen, $message)
+  !$pos = %strpos($message, $token)
+  !if $pos == 0
+    !$mutable_string = $dropping($message, $token)
+    %invoke_procedure($func, $screen, $mutable_string)
+    !return %true()
+  !else
+    !return %false()
+  !endif
+!endfunction
+
+!unquoted procedure $Logic($screen, $message = "")
+  !$handled = $call_logic_if_token("end", "$end_logic", $screen, $message)
+  !if %not($handled)
+    !$handled = $call_logic_if_token("success", "$success_logic", $screen, $message)
+  !endif
+  !if %not($handled)
+    !$handled = $call_logic_if_token("fail", "$fail_logic", $screen, $message)
+  !endif
+  !if %not($handled)
+    $call_logic($screen, $message)
+  !endif
+!endprocedure
+
+!include_once ../app.uml
+!if MODE == "ios"
+  !include_once ios.uml
+  !include_once ../ios/app.uml
+!endif
+
+$configure_participants()
+@enduml

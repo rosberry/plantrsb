@@ -1,0 +1,17 @@
+@startuml
+
+!function $define_screen_color($instance)
+  !foreach $screen in $CONFIG.screens
+    !if $screen.name == $instance
+      !$color = $screen.color
+      !if %not($color)
+        !return $CONFIG.screen.color
+      !else
+        !return $color
+      !endif
+    !endif
+  !endfor
+  !return $CONFIG.screen.color
+!endfunction
+
+@enduml

@@ -1,0 +1,47 @@
+@startuml
+
+!function $map_screen_arguments($token, $message, $func)
+  !$name = $dropping($message, $token)
+  !return "success:1,func:"+$func+",screen:"+$name
+!endfunction
+
+!function $map_tap_action_arguments($message, $action)
+  !$mutable_string = $dropping($message, $action)
+  !$pos = %strpos($mutable_string, " ")
+  !$name = $trimming_whitespaces(%substr($mutable_string, 0, $pos))
+  !$type = $trimming_whitespaces(%substr($mutable_string, $pos, %strlen($mutable_string) - $pos))
+  !return "success:1,element:"+$name+",type:"+$type
+!endfunction
+
+!function $map_arguments($message)
+  !if %strpos($message, "show") == 0
+    !return $map_screen_arguments("show", $message, "$show")
+  !elseif %strpos($message, "tap on") == 0
+    !return $map_tap_action_arguments($message, "tap on") + ",func:$tap"
+  !elseif %strpos($message, "end tap") == 0
+    !return "success:1,func:$end_tap"
+  !elseif %strpos($message, "end") == 0
+    !return "success:1,func:$end_screen"
+  !elseif %strpos($message, "finish") == 0
+    !return $map_screen_arguments("finish", $message, "$finish")
+  !else
+    !return "success: 0"
+  !endif
+!endfunction
+
+!function $mapped_value($map, $name)
+  !$pos = %strpos($map, $name)
+  !$mutable_string = $map
+  !if $pos > 0
+    !$mutable_string = %substr($map, $pos, %strlen($map) - $pos)
+  !endif
+  !$pos = %strpos($mutable_string, ",")
+  !if $pos > 0
+    !$mutable_string = %substr($mutable_string, 0, $pos)
+  !endif
+  !$pos = %strpos($mutable_string, ":")
+  !$mutable_string = %substr($mutable_string, $pos + 1, %strlen($mutable_string) - $pos - 1)
+  !return $mutable_string
+!endfunction
+
+@enduml

@@ -1,0 +1,247 @@
+@startuml
+
+!procedure $configure_participants()
+  actor User
+!endprocedure
+
+!procedure $launchApp()
+  !$color = $CONFIG.app.color
+  box App $color
+  User -> AppDelegate ++: applicationDidFinishLaunchWithOptions
+  AppDelegate -> AppConfigurator ++: configure
+  AppConfigurator -> Services: init
+  deactivate AppConfigurator
+  AppDelegate -> AppCoordinator ++: start
+  deactivate AppDelegate
+  end box
+!endprocedure
+
+!procedure $showCoordinatorModule($parent, $module)
+  !$color = $define_screen_color($module)
+  box $module $color
+  $parent -> $module##Coordinator ++: start
+  $module##Coordinator -> $module##Presenter ++: init(state:)
+  $module##Coordinator -> $module##ViewController ++: init(viewModel:)
+  $module##ViewController -> $module##Presenter: viewDidLoad
+  !if $has_factory($module)
+    $module##Presenter -> $module##ListItemsFactory ++: makeSectionItems
+    $module##Presenter <-- $module##ListItemsFactory --: sectionItems
+  !endif
+  $module##Presenter -> $module##ViewController: update(viewModel:)
+  end box
+!endprocedure
+
+!procedure $showModule($parent, $module)
+  !$color = $define_screen_color($module)
+  box $module $color
+  $parent -> $module##Presenter ++: init(state:)
+  $parent -> $module##ViewController ++: init(viewModel:)
+  $module##ViewController -> $module##Presenter: viewDidLoad
+  !if $has_factory($module)
+    $module##Presenter -> $module##ListItemsFactory ++: makeSectionItems
+    $module##Presenter <-- $module##ListItemsFactory --: sectionItems
+  !endif
+  $module##Presenter -> $module##ViewController: update(viewModel:)
+  end box
+!endprocedure
+
+!procedure $userTapsOnElement($module, $element_type, $action)
+  !$action = %lower($action)
+  User -> $module##ViewController ++: $action##$element_type##ButtonPressed
+  $module##ViewController -> $module##Presenter ++: $action##EventTriggered
+  deactivate $module##ViewController
+!endprocedure
+
+!function $has_coordinator_variable($module)
+  !return "has_coordinator_" + $module
+!endfunction
+
+!unquoted procedure $set_has_coordinator($module, $value)
+  !$name = $has_coordinator_variable($module)
+  %set_variable_value($name, $value)
+!endprocedure
+
+!function $has_coordinator($module)
+  !$has_coordinator_variable_name = $has_coordinator_variable($module)
+  !if %variable_exists($has_coordinator_variable_name)
+    !$value = %get_variable_value($has_coordinator_variable_name)
+    !return %intval($value)
+  !else
+    !return %false()
+  !endif
+!endfunction
+
+!function $has_factory_variable($module)
+  !return "has_factory_" + $module
+!endfunction
+
+!unquoted procedure $set_has_factory($module, $value)
+  !$name = $has_factory_variable($module)
+  %set_variable_value($name, $value)
+!endprocedure
+
+!function $has_factory($module)
+  !$has_factory_variable_name = $has_factory_variable($module)
+  !if %variable_exists($has_factory_variable_name)
+    !$value = %get_variable_value($has_factory_variable_name)
+    !return %intval($value)
+  !else
+    !return %false()
+  !endif
+!endfunction
+
+!function $find_coordinator($stack)
+  !if %strlen($stack) == 0
+    !return "AppCoordinator"
+  !endif
+  !$pos = %strpos($stack, ",")
+  !if $pos < 0
+    !if $has_coordinator($stack)
+      !return $stack + "Coordinator"
+    !else
+      !return "AppCoordinator"
+    !endif
+  !else
+    !$parent = %substr($stack, 0, $pos)
+    !if $has_coordinator($parent)
+      !return $parent + "Coordinator"
+    !else
+      !$len = %strlen($stack)
+      !$substack = %substr($stack, $pos + 1, $len - $pos - 1)
+      !return $find_coordinator($substack)
+    !endif
+  !endif
+!endfunction
+
+!procedure $show($instance, $arguments_map)
+  !$screen = $mapped_value($arguments_map, "screen")
+  !$parent = $subpart($instance, "")
+  !$module = $subpart($screen, "")
+  !$stack = %get_variable_value("$NAVIGATION_STACK")
+  !if %strpos($parent, "Coordinator") < 0
+    !$coordinator = $find_coordinator($stack)
+    !if $has_coordinator($parent)
+      !$coordinator = $parent + "Coordinator"
+    !endif
+    $parent##Presenter -> $coordinator: %lower($parent)ModuleShow##$module
+    !$parent = $coordinator
+  !endif
+
+  !if $has_coordinator($module)
+    $showCoordinatorModule($parent, $module)
+  !else
+    $showModule($parent, $module)
+  !endif
+  !if %strlen($stack) > 0
+    !$stack = $module + "," + $stack
+  !else
+    !$stack = $module
+  !endif
+  %set_variable_value("$NAVIGATION_STACK", $stack)
+!endprocedure
+
+!procedure $tap($screen, $arguments_map)
+  !$element = $mapped_value($arguments_map, "element")
+  !$type = $mapped_value($arguments_map, "type")
+  User -> $screen##ViewController ++: %lower($element)$type##Pressed
+  $screen##ViewController -> $screen##Presenter ++: %lower($element)EventTriggered
+!endprocedure
+
+!procedure $end_tap($screen, $arguments_map)
+  deactivate $screen##ViewController
+  deactivate $screen##Presenter
+!endprocedure
+
+!procedure $end_screen($screen, $arguments_map)
+  !if $screen == "App"
+    deactivate AppCoordinator
+  !else
+    deactivate $screen##ViewController
+    deactivate $screen##Presenter
+    !if $has_coordinator($screen)
+      deactivate $screen##Coordinator
+    !endif
+  !endif
+!endprocedure
+
+!unquoted procedure $set_service_capability($service, $message)
+  !$name = $function_name($message, "service_")
+  %set_variable_value($name, $service)
+!endprocedure
+
+!function $get_service($message)
+  !$name = $function_name($message, "service_")
+  !return %get_variable_value($name)
+!endfunction
+
+!function $logic_interactor($screen)
+  !if $screen == "App"
+    !return "AppCoordinator"
+  !else
+    !return $screen + "Presenter"
+  !endif
+!endfunction
+
+!procedure $call_logic($screen, $message)
+  !$service = $get_service($message)
+  !$name = $camel_cased($message, %false())
+  $logic_interactor($screen) -> $service ++: $name
+!endprocedure
+
+!procedure $success_logic($screen, $message)
+  !$service = $get_service($message)
+  !$interactor = $logic_interactor($screen)
+  $interactor <-- $service: success
+  activate $service
+  deactivate $service
+  activate $interactor
+  deactivate $interactor
+!endprocedure
+
+!procedure $fail_logic($screen, $message)
+  !$service = $get_service($message)
+  !$interactor = $logic_interactor($screen)
+  $interactor <-- $service: failure
+  activate $service
+  deactivate $service
+  activate $interactor
+  deactivate $interactor
+!endprocedure
+
+!procedure $end_logic($screen, $message)
+  !$service = $get_service($message)
+  deactivate $service
+!endprocedure
+
+!procedure $finish($instance, $arguments_map)
+  !$screen = $mapped_value($arguments_map, "screen")
+  !if $screen == "App"
+     !$screen = "AppCoordinator"
+  !elseif $has_coordinator($screen)
+    $screen##ViewController --> $screen##Presenter: finish
+    deactivate $screen##ViewController
+    $screen##Presenter --> $screen##Coordinator: finish
+    deactivate $screen##Presenter
+    !$screen = $screen + "Coordinator"
+  !else
+    $screen##ViewController --> $screen##Presenter: finish
+    deactivate $screen##ViewController
+    !$screen = $screen + "Presenter"
+  !endif
+  !if $instance == "App"
+    $screen --> $instance##Coordinator: finish
+  !elseif $instance == "User"
+    $screen --> User: finish
+  !elseif $has_coordinator($instance)
+    $screen --> $instance##Coordinator: finish
+  !else
+    $screen --> $instance##Presenter: finish
+  !endif
+  deactivate $screen
+!endprocedure
+
+$override_procedure(App: launch, $launchApp)
+$override(App, AppCoordinator)
+!$NAVIGATION_STACK = ""
+
+@enduml
