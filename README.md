@@ -41,7 +41,7 @@ Defines the functionality of `App` or `User` interaction with the screen.  Curre
 - $Screen(`name`, end tap) - end last tap action handling on the screen with `name`
 - $Screen(`name`, finish `child`) - finish `child` screen and return to screen with `name`
 
-### $Logic
+### $Logic()
 
 Defines the functionality of `App` or `Screen` interaction with business logic of the application. Currently it can handle the following messages:
 
