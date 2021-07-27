@@ -134,6 +134,9 @@ $override(App: launch, User -> App ++: launch)
   activate BusinessLogic
   deactivate BusinessLogic
   activate $screen
+!endprocedure
+
+!procedure $end_success_logic($screen, $message)
   deactivate $screen
 !endprocedure
 
@@ -142,6 +145,9 @@ $override(App: launch, User -> App ++: launch)
   activate BusinessLogic
   deactivate BusinessLogic
   activate $screen
+!endprocedure
+
+!procedure $end_fail_logic($screen, $message)
   deactivate $screen
 !endprocedure
 
@@ -161,7 +167,13 @@ $override(App: launch, User -> App ++: launch)
 !endfunction
 
 !unquoted procedure $Logic($screen, $message = "")
-  !$handled = $call_logic_if_token("end", "$end_logic", $screen, $message)
+  !$handled = $call_logic_if_token("end fail", "$end_fail_logic", $screen, $message)
+  !if %not($handled)
+    !$handled = $call_logic_if_token("end success", "$end_success_logic", $screen, $message)
+  !endif
+  !if %not($handled)
+    !$handled = $call_logic_if_token("end", "$end_logic", $screen, $message)
+  !endif
   !if %not($handled)
     !$handled = $call_logic_if_token("success", "$success_logic", $screen, $message)
   !endif

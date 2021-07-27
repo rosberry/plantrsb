@@ -21,27 +21,41 @@
   box $module $color
   $parent -> $module##Coordinator ++: start
   $module##Coordinator -> $module##Presenter ++: init(state:)
+  deactivate $module##Presenter
   $module##Coordinator -> $module##ViewController ++: init(viewModel:)
-  $module##ViewController -> $module##Presenter: viewDidLoad
+  deactivate $module##ViewController
+  deactivate $module##Coordinator
+  deactivate $parent
+  $module##ViewController -> $module##Presenter ++: viewDidLoad
+  activate $module##ViewController
   !if $has_factory($module)
     $module##Presenter -> $module##ListItemsFactory ++: makeSectionItems
     $module##Presenter <-- $module##ListItemsFactory --: sectionItems
   !endif
   $module##Presenter -> $module##ViewController: update(viewModel:)
+  deactivate $module##Presenter
+  deactivate $module##ViewController
   end box
 !endprocedure
 
 !procedure $showModule($parent, $module)
   !$color = $define_screen_color($module)
   box $module $color
+  activate $parent
   $parent -> $module##Presenter ++: init(state:)
+  deactivate $module##Presenter
   $parent -> $module##ViewController ++: init(viewModel:)
-  $module##ViewController -> $module##Presenter: viewDidLoad
+  deactivate $module##ViewController
+  $module##ViewController -> $module##Presenter++: viewDidLoad
+  activate $module##ViewController
   !if $has_factory($module)
     $module##Presenter -> $module##ListItemsFactory ++: makeSectionItems
     $module##Presenter <-- $module##ListItemsFactory --: sectionItems
   !endif
   $module##Presenter -> $module##ViewController: update(viewModel:)
+  deactivate $module##ViewController
+  deactivate $module##Presenter
+  deactivate $parent
   end box
 !endprocedure
 
@@ -202,9 +216,21 @@
   !$service = $get_service($message)
   !$interactor = $logic_interactor($screen)
   $interactor <-- $service: failure
-  activate $service
-  deactivate $service
   activate $interactor
+  activate $service
+!endprocedure
+
+!procedure $end_fail_logic($screen, $message)
+  !$service = $get_service($message)
+  !$interactor = $logic_interactor($screen)
+  deactivate $service
+  deactivate $interactor
+!endprocedure
+
+!procedure $end_success_logic($screen, $message)
+  !$service = $get_service($message)
+  !$interactor = $logic_interactor($screen)
+  deactivate $service
   deactivate $interactor
 !endprocedure
 
@@ -218,24 +244,31 @@
   !if $screen == "App"
      !$screen = "AppCoordinator"
   !elseif $has_coordinator($screen)
-    $screen##ViewController --> $screen##Presenter: finish
-    deactivate $screen##ViewController
+    $screen##ViewController --> $screen##Presenter ++: finish
+    activate $screen##ViewController
     $screen##Presenter --> $screen##Coordinator: finish
+    activate $screen##Coordinator
     deactivate $screen##Presenter
+    deactivate $screen##ViewController
     !$screen = $screen + "Coordinator"
   !else
     $screen##ViewController --> $screen##Presenter: finish
+    activate $screen##ViewController
+    activate $screen##Presenter
     deactivate $screen##ViewController
     !$screen = $screen + "Presenter"
   !endif
   !if $instance == "App"
-    $screen --> $instance##Coordinator: finish
+    $screen --> $instance##Coordinator ++: finish
+    deactivate $instance##Coordinator
   !elseif $instance == "User"
     $screen --> User: finish
   !elseif $has_coordinator($instance)
-    $screen --> $instance##Coordinator: finish
+    $screen --> $instance##Coordinator ++: finish
+    deactivate $instance##Coordinator
   !else
-    $screen --> $instance##Presenter: finish
+    $screen --> $instance##Presenter ++: finish
+    deactivate $instance##Presenter
   !endif
   deactivate $screen
 !endprocedure
